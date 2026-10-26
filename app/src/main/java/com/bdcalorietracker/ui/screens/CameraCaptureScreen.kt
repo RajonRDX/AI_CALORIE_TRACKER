@@ -67,7 +67,6 @@ fun CameraCaptureScreen(
             .build()
     }
 
-    // If user snapped or picked a photo, let them preview it before sending an AI request
     if (capturedPhotoUri != null) {
         Column(
             modifier = Modifier
@@ -121,7 +120,6 @@ fun CameraCaptureScreen(
         if (hasCameraPermission) {
             val previewView = remember {
                 PreviewView(context).apply {
-                    // COMPATIBLE mode fixes black/blank camera viewfinder on all Android devices
                     implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                     scaleType = PreviewView.ScaleType.FILL_CENTER
                 }
@@ -132,7 +130,7 @@ fun CameraCaptureScreen(
                 cameraProviderFuture.addListener({
                     val cameraProvider = cameraProviderFuture.get()
                     val preview = Preview.Builder().build().also {
-                        it.surfaceProvider = previewView.surfaceProvider
+                        it.setSurfaceProvider(previewView.surfaceProvider)
                     }
                     try {
                         cameraProvider.unbindAll()
