@@ -91,6 +91,8 @@ class MainActivity : AppCompatActivity() {
                                         viewModel.startManualEntryWithPhoto(null)
                                         navController.navigate("result")
                                     },
+                                    onDeleteFoodItem = viewModel::deleteLoggedFoodItem,
+                                    onDeleteMeal = viewModel::deleteEntireMeal,
                                     onEditGoalClick = { navController.navigate("onboarding") },
                                     onToggleLang = { viewModel.toggleLanguage(activeProfile.languageCode) }
                                 )
