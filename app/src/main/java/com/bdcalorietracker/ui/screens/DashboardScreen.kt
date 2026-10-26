@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Settings
@@ -20,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import com.bdcalorietracker.R
 import com.bdcalorietracker.data.local.MealWithItems
 import com.bdcalorietracker.data.local.UserProfileEntity
+import java.text.SimpleDateFormat
+import java.util.*
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,6 +31,7 @@ fun DashboardScreen(
     profile: UserProfileEntity,
     todayMeals: List<MealWithItems>,
     onScanClick: () -> Unit,
+    onManualAddClick: () -> Unit = {},
     onEditGoalClick: () -> Unit,
     onToggleLang: () -> Unit
 ) {
@@ -36,11 +40,17 @@ fun DashboardScreen(
     val eatenC = todayMeals.sumOf { it.meal.totalCarbsG }.roundToInt()
     val eatenF = todayMeals.sumOf { it.meal.totalFatG }.roundToInt()
     val isBn = profile.languageCode == "bn"
+    val todayLabel = SimpleDateFormat("EEEE, dd MMM yyyy", Locale.getDefault()).format(Date())
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.app_name), fontWeight = FontWeight.Bold) },
+                title = {
+                    Column {
+                        Text(stringResource(R.string.app_name), fontWeight = FontWeight.Bold)
+                        Text(todayLabel, style = MaterialTheme.typography.labelSmall)
+                    }
+                },
                 actions = {
                     TextButton(onClick = onToggleLang) {
                         Icon(Icons.Default.Language, contentDescription = null)
@@ -54,11 +64,22 @@ fun DashboardScreen(
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onScanClick,
-                icon = { Icon(Icons.Default.CameraAlt, contentDescription = null) },
-                text = { Text(stringResource(R.string.scan_meal)) }
-            )
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                ExtendedFloatingActionButton(
+                    onClick = onManualAddClick,
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    icon = { Icon(Icons.Default.AddCircleOutline, contentDescription = null) },
+                    text = { Text(if (isBn) "ম্যানুয়ালি যোগ" else "Manual Add") }
+                )
+                ExtendedFloatingActionButton(
+                    onClick = onScanClick,
+                    icon = { Icon(Icons.Default.CameraAlt, contentDescription = null) },
+                    text = { Text(stringResource(R.string.scan_meal)) }
+                )
+            }
         }
     ) { padding ->
         LazyColumn(
@@ -84,28 +105,16 @@ fun DashboardScreen(
                         ) {
                             CalorieRingChart(eaten = eatenKcal, target = profile.targetKcal)
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("${stringResource(R.string.eaten)}: $eatenKcal kcal", style = MaterialTheme.typography.titleMedium)
+                                Text("${stringResource(R.string.eaten)}: $eatenKcal kcal", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                                 Text("${stringResource(R.string.goal)}: ${profile.targetKcal} kcal", style = MaterialTheme.typography.bodyMedium)
                             }
                         }
                         Spacer(Modifier.height(16.dp))
-                        MacroProgressBar(
-                            label = stringResource(R.string.protein),
-                            current = eatenP,
-                            target = profile.targetProteinG
-                        )
+                        MacroProgressBar(stringResource(R.string.protein), eatenP, profile.targetProteinG)
                         Spacer(Modifier.height(8.dp))
-                        MacroProgressBar(
-                            label = stringResource(R.string.carbs),
-                            current = eatenC,
-                            target = profile.targetCarbsG
-                        )
+                        MacroProgressBar(stringResource(R.string.carbs), eatenC, profile.targetCarbsG)
                         Spacer(Modifier.height(8.dp))
-                        MacroProgressBar(
-                            label = stringResource(R.string.fat),
-                            current = eatenF,
-                            target = profile.targetFatG
-                        )
+                        MacroProgressBar(stringResource(R.string.fat), eatenF, profile.targetFatG)
                     }
                 }
             }
@@ -120,20 +129,25 @@ fun DashboardScreen(
 
             if (todayMeals.isEmpty()) {
                 item {
-                    Text(
-                        text = if (isBn) "আজ এখনো কোনো খাবার যোগ করা হয়নি। ক্যামেরা বাটন চাপুন!" else "No meals logged today yet. Tap Scan Meal to capture your plate!",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = if (isBn) "আজ এখনো কোনো খাবার যোগ করা হয়নি। নিচে 'Manual Add' বা 'খাবার স্ক্যান' চাপুন!"
+                            else "No meals logged today yet. Tap 'Manual Add' for quick coffee/snacks or 'Scan Meal' for a plate photo!",
+                            modifier = Modifier.padding(16.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 }
             } else {
                 items(todayMeals) { mealWithItems ->
+                    val timeLabel = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(mealWithItems.meal.timestamp))
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(mealWithItems.meal.mealType.name, fontWeight = FontWeight.Bold)
+                                Text("${mealWithItems.meal.mealType.name} • $timeLabel", fontWeight = FontWeight.Bold)
                                 Text("${mealWithItems.meal.totalKcal} kcal", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                             }
                             Spacer(Modifier.height(6.dp))
@@ -145,7 +159,7 @@ fun DashboardScreen(
                     }
                 }
             }
-            item { Spacer(Modifier.height(80.dp)) }
+            item { Spacer(Modifier.height(120.dp)) }
         }
     }
 }
