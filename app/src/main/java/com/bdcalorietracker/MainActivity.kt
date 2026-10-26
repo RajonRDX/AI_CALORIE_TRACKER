@@ -87,6 +87,10 @@ class MainActivity : AppCompatActivity() {
                                     profile = activeProfile,
                                     todayMeals = todayMeals,
                                     onScanClick = { navController.navigate("camera") },
+                                    onManualAddClick = {
+                                        viewModel.startManualEntryWithPhoto(null)
+                                        navController.navigate("result")
+                                    },
                                     onEditGoalClick = { navController.navigate("onboarding") },
                                     onToggleLang = { viewModel.toggleLanguage(activeProfile.languageCode) }
                                 )
@@ -96,6 +100,10 @@ class MainActivity : AppCompatActivity() {
                             CameraCaptureScreen(
                                 onImageSelected = { uri ->
                                     viewModel.processSelectedImage(uri)
+                                    navController.navigate("result")
+                                },
+                                onManualLogClick = {
+                                    viewModel.startManualEntryWithPhoto(null)
                                     navController.navigate("result")
                                 }
                             )
