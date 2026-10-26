@@ -2,6 +2,7 @@ package com.bdcalorietracker.data.local
 
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
+import kotlin.math.roundToInt
 
 data class MealWithItems(
     @Embedded val meal: MealLogEntity,
@@ -57,10 +58,43 @@ interface MealDao {
     @Insert
     suspend fun insertItems(items: List<MealItemEntity>)
 
+    @Query("DELETE FROM meal_logs WHERE id = :mealId")
+    suspend fun deleteMealById(mealId: Long)
+
+    @Query("DELETE FROM meal_items WHERE id = :itemId")
+    suspend fun deleteMealItemById(itemId: Long)
+
+    @Query("SELECT * FROM meal_items WHERE mealLogId = :mealLogId")
+    suspend fun getItemsForMealSync(mealLogId: Long): List<MealItemEntity>
+
+    @Query("""
+        UPDATE meal_logs 
+        SET totalKcal = :kcal, totalProteinG = :protein, totalCarbsG = :carbs, totalFatG = :fat 
+        WHERE id = :mealLogId
+    """)
+    suspend fun updateMealTotals(mealLogId: Long, kcal: Int, protein: Double, carbs: Double, fat: Double)
+
     @Transaction
     suspend fun saveMealWithItems(meal: MealLogEntity, items: List<MealItemEntity>) {
         val mealId = insertMeal(meal)
         insertItems(items.map { it.copy(mealLogId = mealId) })
+    }
+
+    @Transaction
+    suspend fun deleteSingleFoodItemAndRecalculate(item: MealItemEntity) {
+        deleteMealItemById(item.id)
+        val remaining = getItemsForMealSync(item.mealLogId)
+        if (remaining.isEmpty()) {
+            deleteMealById(item.mealLogId)
+        } else {
+            updateMealTotals(
+                mealLogId = item.mealLogId,
+                kcal = remaining.sumOf { it.kcal }.roundToInt(),
+                protein = remaining.sumOf { it.proteinG },
+                carbs = remaining.sumOf { it.carbsG },
+                fat = remaining.sumOf { it.fatG }
+            )
+        }
     }
 }
 
