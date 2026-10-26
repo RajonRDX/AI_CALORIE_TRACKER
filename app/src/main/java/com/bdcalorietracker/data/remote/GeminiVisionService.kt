@@ -1,4 +1,4 @@
-package com.bdcalorietracker.data.remote
+package com.bdcalorietracker.data.remote // (Keep your own package name here if you changed it!)
 
 import android.graphics.Bitmap
 import com.google.firebase.Firebase
@@ -47,16 +47,15 @@ class GeminiVisionService @Inject constructor() {
         )
     )
 
-    private val generativeModel by lazy {
+    private fun getModel(modelName: String) =
         Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
-            modelName = "gemini-2.5-flash",
+            modelName = modelName,
             generationConfig = generationConfig {
                 responseMimeType = "application/json"
                 responseSchema = plateSchema
                 temperature = 0.2f
             }
         )
-    }
 
     suspend fun analyzePlatePhoto(bitmap: Bitmap): Result<List<GeminiDetectedFoodItem>> {
         val prompt = """
@@ -66,20 +65,22 @@ class GeminiVisionService @Inject constructor() {
             Return strictly valid JSON matching the schema.
         """.trimIndent()
 
+        // Try gemini-3.8-flash first, then fallback to gemini-flash-latest
+        val candidateModels = listOf("gemini-3.8-flash", "gemini-flash-latest")
         var lastException: Exception? = null
-        repeat(2) { attempt ->
+
+        for (modelName in candidateModels) {
             try {
                 val inputContent = content {
                     image(bitmap)
                     text(prompt)
                 }
-                val response = generativeModel.generateContent(inputContent)
+                val response = getModel(modelName).generateContent(inputContent)
                 val rawText = response.text ?: throw IllegalStateException("Empty Gemini response")
                 val parsed = jsonParser.decodeFromString<GeminiDetectedPlate>(rawText)
-                if (parsed.items.isEmpty() && attempt == 0) {
-                    throw IllegalStateException("No items detected on attempt 1")
+                if (parsed.items.isNotEmpty()) {
+                    return Result.success(parsed.items)
                 }
-                return Result.success(parsed.items)
             } catch (e: Exception) {
                 lastException = e
             }
