@@ -1,3 +1,5 @@
+import java.io.File
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -22,12 +24,16 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    val keystoreFile = file("release-key.jks")
+
     signingConfigs {
         create("release") {
-            storeFile = file("release-key.jks")
-            storePassword = "bdcaloriepassword"
-            keyAlias = "bdcalorie"
-            keyPassword = "bdcaloriepassword"
+            if (keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = "bdcaloriepassword"
+                keyAlias = "bdcalorie"
+                keyPassword = "bdcaloriepassword"
+            }
         }
     }
 
@@ -35,11 +41,12 @@ android {
         release {
             isMinifyEnabled = false
             isShrinkResources = false
-            signingConfig = signingConfigs.getByName("release")
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            // Use release signing if the keystore is generated, otherwise fall back to debug signing
+            signingConfig = if (keystoreFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
         debug {
             applicationIdSuffix = ".debug"
@@ -93,7 +100,7 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
 
-    // Firebase (Using BoM for version alignment)
+    // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.ai)
     implementation(libs.firebase.common)
