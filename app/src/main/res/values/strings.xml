@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">BD Calorie Tracker</string>
+    <string name="disclaimer_banner">⚠️ Photo-based portion &amp; calorie estimates are approximate. Adjust weights below for accuracy.</string>
+    <string name="dashboard">Dashboard</string>
+    <string name="scan_meal">Scan Meal</string>
+    <string name="history">History</string>
+    <string name="calories_remaining">kcal Remaining</string>
+    <string name="eaten">Eaten</string>
+    <string name="goal">Goal</string>
+    <string name="protein">Protein</string>
+    <string name="carbs">Carbs</string>
+    <string name="fat">Fat</string>
+    <string name="save_meal">Save Meal</string>
+    <string name="offline_error">You appear to be offline or the AI service could not be reached. Please check your connection or add items manually.</string>
+</resources>

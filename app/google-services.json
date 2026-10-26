@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "207673549933",
+    "project_id": "bd-calorie-tracker-android",
+    "storage_bucket": "bd-calorie-tracker-android.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:207673549933:android:204fd4a098aacb9e248b64",
+        "android_client_info": {
+          "package_name": "com.bdcalorietracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDSMEz6p2AeAWtlD18UFsyu_zdW0Scp_Yw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
