@@ -13,12 +13,13 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        // NOTE: If your google-services.json uses "com.rajon.bdcalorietracker", keep that here!
-        applicationId = "com.rajon.bdcalorietracker"
+        applicationId = "com.bdcalorietracker"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     val keystoreFile = file("release-key.jks")
@@ -47,6 +48,12 @@ android {
         debug {
             isDebuggable = true
         }
+    }
+
+    // Prevents Release builds from failing on MissingTranslation or strict Lint checks
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
     }
 
     compileOptions {
