@@ -35,14 +35,13 @@ class GeminiVisionService @Inject constructor() {
         coerceInputValues = true
     }
 
-    private val generativeModel by lazy {
+    private fun buildModel(modelName: String) =
         Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
-            modelName = "gemini-3.8-flash",
+            modelName = modelName,
             generationConfig = generationConfig {
                 responseMimeType = "application/json"
             }
         )
-    }
 
     suspend fun analyzePlatePhoto(bitmap: Bitmap): Result<List<GeminiDetectedFoodItem>> {
         val prompt = """
@@ -61,29 +60,53 @@ class GeminiVisionService @Inject constructor() {
             }
         """.trimIndent()
 
-        return try {
-            withTimeout(40_000L) {
-                val inputContent = content {
-                    image(bitmap)
-                    text(prompt)
-                }
-                val response = generativeModel.generateContent(inputContent)
-                val rawText = response.text
-                    ?.trim()
-                    ?.removePrefix("```json")
-                    ?.removePrefix("```")
-                    ?.removeSuffix("```")
-                    ?.trim()
-                    ?: throw IllegalStateException("Empty response from AI")
+        val modelsToTry = listOf(
+            "gemini-3.8-flash",
+            "gemini-3.6-flash",
+            "gemini-3.5-flash",
+            "gemini-3.1-flash-lite"
+        )
 
-                val parsed = jsonParser.decodeFromString<GeminiDetectedPlate>(rawText)
-                if (parsed.items.isEmpty()) {
-                    throw IllegalStateException("No food items detected in the photo.")
+        val errors = mutableListOf<String>()
+
+        for (modelName in modelsToTry) {
+            try {
+                return withTimeout(35_000L) {
+                    val inputContent = content {
+                        image(bitmap)
+                        text(prompt)
+                    }
+                    val response = buildModel(modelName).generateContent(inputContent)
+                    val rawText = response.text
+                        ?.trim()
+                        ?.removePrefix("```json")
+                        ?.removePrefix("```")
+                        ?.removeSuffix("```")
+                        ?.trim()
+                        ?: throw IllegalStateException("Empty response text")
+
+                    // Extract JSON object even if extra text surrounds it
+                    val jsonStart = rawText.indexOf('{')
+                    val jsonEnd = rawText.lastIndexOf('}')
+                    val cleanJson = if (jsonStart != -1 && jsonEnd > jsonStart) {
+                        rawText.substring(jsonStart, jsonEnd + 1)
+                    } else {
+                        rawText
+                    }
+
+                    val parsed = jsonParser.decodeFromString<GeminiDetectedPlate>(cleanJson)
+                    if (parsed.items.isEmpty()) {
+                        throw IllegalStateException("0 items detected")
+                    }
+                    Result.success(parsed.items)
                 }
-                Result.success(parsed.items)
+            } catch (e: Exception) {
+                // Unwrap the real cause hidden inside Firebase's "Something unexpected happened."
+                val rootCause = e.cause?.localizedMessage ?: e.localizedMessage ?: e.javaClass.simpleName
+                errors.add("$modelName -> $rootCause")
             }
-        } catch (e: Exception) {
-            Result.failure(Exception("${e::class.simpleName}: ${e.localizedMessage}"))
         }
+
+        return Result.failure(Exception(errors.joinToString("\n")))
     }
 }
