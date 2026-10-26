@@ -242,4 +242,15 @@ class MainViewModel @Inject constructor(
             }
         }
     }
+    fun deleteLoggedFoodItem(item: MealItemEntity) {
+        viewModelScope.launch(Dispatchers.IO) {
+            mealDao.deleteSingleFoodItemAndRecalculate(item)
+        }
+    }
+
+    fun deleteEntireMeal(mealId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            mealDao.deleteMealById(mealId)
+        }
+    }
 }
