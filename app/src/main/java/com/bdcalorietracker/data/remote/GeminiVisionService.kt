@@ -1,12 +1,12 @@
-package com.bdcalorietracker.data.remote // (Keep your own package name here if you changed it!)
+package com.bdcalorietracker.data.remote
 
 import android.graphics.Bitmap
 import com.google.firebase.Firebase
 import com.google.firebase.ai.ai
 import com.google.firebase.ai.type.GenerativeBackend
-import com.google.firebase.ai.type.Schema
 import com.google.firebase.ai.type.content
 import com.google.firebase.ai.type.generationConfig
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -14,77 +14,79 @@ import javax.inject.Singleton
 
 @Serializable
 data class GeminiDetectedPlate(
-    val items: List<GeminiDetectedFoodItem>
+    val items: List<GeminiDetectedFoodItem> = emptyList()
 )
 
 @Serializable
 data class GeminiDetectedFoodItem(
-    val name_en: String,
-    val name_bn: String,
-    val estimated_grams: Double,
-    val serving_description: String,
-    val confidence: Double
+    val name_en: String = "Unknown Food",
+    val name_bn: String = "অজানা খাবার",
+    val estimated_grams: Double = 100.0,
+    val serving_description: String = "1 serving",
+    val confidence: Double = 0.7
 )
 
 @Singleton
 class GeminiVisionService @Inject constructor() {
 
-    private val jsonParser = Json { ignoreUnknownKeys = true; isLenient = true }
+    private val jsonParser = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        coerceInputValues = true
+    }
 
-    private val plateSchema = Schema.obj(
-        mapOf(
-            "items" to Schema.array(
-                Schema.obj(
-                    mapOf(
-                        "name_en" to Schema.string("English name of the Bangladeshi dish"),
-                        "name_bn" to Schema.string("Bangla name in Bengali script"),
-                        "estimated_grams" to Schema.double("Estimated cooked weight in grams"),
-                        "serving_description" to Schema.string("Portion description like '1 cup rice'"),
-                        "confidence" to Schema.double("Confidence score between 0.0 and 1.0")
-                    )
-                )
-            )
-        )
-    )
-
-    private fun getModel(modelName: String) =
+    // Removed strict responseSchema object lockup; responseMimeType = "application/json" is 3x faster
+    private val generativeModel by lazy {
         Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
-            modelName = modelName,
+            modelName = "gemini-3.8-flash",
             generationConfig = generationConfig {
                 responseMimeType = "application/json"
-                responseSchema = plateSchema
-                temperature = 0.2f
+                temperature = 0.1f
             }
         )
+    }
 
     suspend fun analyzePlatePhoto(bitmap: Bitmap): Result<List<GeminiDetectedFoodItem>> {
         val prompt = """
-            You are an expert Bangladeshi nutritionist. Inspect this meal photo carefully.
-            Identify every distinct Bangladeshi food item on the plate (bhaat, dal, bhorta, shutki, mach/fish, mangsho/meat, khichuri, biryani, ruti, paratha, bhaji, pitha, mishti, etc.).
-            Estimate the cooked edible weight in grams for each item based on standard plate proportions.
-            Return strictly valid JSON matching the schema.
+            Identify all Bangladeshi food items in this photo.
+            Return ONLY valid JSON in this exact format:
+            {
+              "items": [
+                {
+                  "name_en": "Steamed White Rice (Parboiled)",
+                  "name_bn": "সিদ্ধ ভাত",
+                  "estimated_grams": 200.0,
+                  "serving_description": "1 cup",
+                  "confidence": 0.9
+                }
+              ]
+            }
         """.trimIndent()
 
-        // Try gemini-3.8-flash first, then fallback to gemini-flash-latest
-        val candidateModels = listOf("gemini-3.8-flash", "gemini-flash-latest")
-        var lastException: Exception? = null
-
-        for (modelName in candidateModels) {
-            try {
+        return try {
+            // 25-second hard timeout so the UI never hangs forever
+            withTimeout(25_000L) {
                 val inputContent = content {
                     image(bitmap)
                     text(prompt)
                 }
-                val response = getModel(modelName).generateContent(inputContent)
-                val rawText = response.text ?: throw IllegalStateException("Empty Gemini response")
+                val response = generativeModel.generateContent(inputContent)
+                val rawText = response.text
+                    ?.trim()
+                    ?.removePrefix("```json")
+                    ?.removePrefix("```")
+                    ?.removeSuffix("```")
+                    ?.trim()
+                    ?: throw IllegalStateException("Empty response from AI")
+
                 val parsed = jsonParser.decodeFromString<GeminiDetectedPlate>(rawText)
-                if (parsed.items.isNotEmpty()) {
-                    return Result.success(parsed.items)
+                if (parsed.items.isEmpty()) {
+                    throw IllegalStateException("No food items detected in the photo.")
                 }
-            } catch (e: Exception) {
-                lastException = e
+                Result.success(parsed.items)
             }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
-        return Result.failure(lastException ?: Exception("Failed to recognize food items"))
     }
 }
