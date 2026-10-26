@@ -7,6 +7,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -19,6 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bdcalorietracker.R
+import com.bdcalorietracker.data.local.MealItemEntity
 import com.bdcalorietracker.data.local.MealWithItems
 import com.bdcalorietracker.data.local.UserProfileEntity
 import java.text.SimpleDateFormat
@@ -32,6 +35,8 @@ fun DashboardScreen(
     todayMeals: List<MealWithItems>,
     onScanClick: () -> Unit,
     onManualAddClick: () -> Unit = {},
+    onDeleteFoodItem: (MealItemEntity) -> Unit = {},
+    onDeleteMeal: (Long) -> Unit = {},
     onEditGoalClick: () -> Unit,
     onToggleLang: () -> Unit
 ) {
@@ -139,21 +144,61 @@ fun DashboardScreen(
                     }
                 }
             } else {
-                items(todayMeals) { mealWithItems ->
+                items(todayMeals, key = { it.meal.id }) { mealWithItems ->
                     val timeLabel = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(mealWithItems.meal.timestamp))
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text("${mealWithItems.meal.mealType.name} • $timeLabel", fontWeight = FontWeight.Bold)
-                                Text("${mealWithItems.meal.totalKcal} kcal", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        "${mealWithItems.meal.totalKcal} kcal",
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    IconButton(
+                                        onClick = { onDeleteMeal(mealWithItems.meal.id) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.DeleteOutline,
+                                            contentDescription = "Delete Entire Meal",
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                }
                             }
-                            Spacer(Modifier.height(6.dp))
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
                             mealWithItems.items.forEach { item ->
                                 val title = if (isBn) "${item.name_bn} (${item.name_en})" else "${item.name_en} (${item.name_bn})"
-                                Text("• $title — ${item.grams.roundToInt()}g (${item.kcal.roundToInt()} kcal)", style = MaterialTheme.typography.bodySmall)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 2.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "• $title — ${item.grams.roundToInt()}g (${item.kcal.roundToInt()} kcal)",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    IconButton(
+                                        onClick = { onDeleteFoodItem(item) },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Delete Food Item",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
