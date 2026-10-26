@@ -50,7 +50,6 @@ android {
         }
     }
 
-    // Prevents Release builds from failing on MissingTranslation or strict Lint checks
     lint {
         checkReleaseBuilds = false
         abortOnError = false
@@ -98,6 +97,8 @@ dependencies {
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
+
+    implementation(libs.androidx.work.runtime.ktx)
 
     implementation(libs.coil.compose)
     implementation(libs.kotlinx.serialization.json)
