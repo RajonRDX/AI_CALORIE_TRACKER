@@ -35,13 +35,11 @@ class GeminiVisionService @Inject constructor() {
         coerceInputValues = true
     }
 
-    // Removed strict responseSchema object lockup; responseMimeType = "application/json" is 3x faster
     private val generativeModel by lazy {
         Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
             modelName = "gemini-3.8-flash",
             generationConfig = generationConfig {
                 responseMimeType = "application/json"
-                temperature = 0.1f
             }
         )
     }
@@ -64,8 +62,7 @@ class GeminiVisionService @Inject constructor() {
         """.trimIndent()
 
         return try {
-            // 25-second hard timeout so the UI never hangs forever
-            withTimeout(25_000L) {
+            withTimeout(40_000L) {
                 val inputContent = content {
                     image(bitmap)
                     text(prompt)
@@ -86,7 +83,7 @@ class GeminiVisionService @Inject constructor() {
                 Result.success(parsed.items)
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception("${e::class.simpleName}: ${e.localizedMessage}"))
         }
     }
 }
