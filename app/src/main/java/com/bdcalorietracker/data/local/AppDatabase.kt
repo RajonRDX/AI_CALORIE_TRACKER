@@ -8,7 +8,7 @@ import java.io.InputStreamReader
 
 @Database(
     entities = [FoodEntity::class, MealLogEntity::class, MealItemEntity::class, UserProfileEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -19,15 +19,16 @@ abstract class AppDatabase : RoomDatabase() {
 
 object CsvSeedLoader {
     suspend fun seedIfNeeded(context: Context, foodDao: FoodDao) {
-        if (foodDao.count() > 0) return
+        val currentCount = foodDao.count()
         val foods = mutableListOf<FoodEntity>()
         context.assets.open("foods.csv").use { inputStream ->
             BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8)).useLines { lines ->
-                lines.drop(1).forEach { line ->
+                lines.drop(1).forEachIndexed { index, line ->
                     val tokens = line.split(",")
                     if (tokens.size >= 9) {
                         foods.add(
                             FoodEntity(
+                                id = (index + 1).toLong(),
                                 name_en = tokens[0].trim(),
                                 name_bn = tokens[1].trim(),
                                 kcal_per_100g = tokens[2].trim().toDoubleOrNull() ?: 100.0,
@@ -43,6 +44,8 @@ object CsvSeedLoader {
                 }
             }
         }
-        foodDao.insertAll(foods)
+        if (currentCount < foods.size) {
+            foodDao.insertAll(foods)
+        }
     }
 }
