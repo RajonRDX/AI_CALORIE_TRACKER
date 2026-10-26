@@ -1,8 +1,10 @@
 package com.bdcalorietracker.ui.screens
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -23,6 +25,17 @@ import com.bdcalorietracker.ui.EditablePlateItem
 import com.bdcalorietracker.ui.ScanUiState
 import kotlin.math.roundToInt
 
+private val QUICK_ADD_STAPLES = listOf(
+    FoodEntity(901, "Black Coffee (Unsweetened)", "ব্ল্যাক কফি", 2.0, 0.3, 0.0, 0.0, 0.0, 200.0, "1 Mug = 200ml (4 kcal)"),
+    FoodEntity(902, "White Sugar (1 tsp)", "চিনি (১ চামচ)", 398.0, 0.0, 99.8, 0.0, 0.0, 5.0, "1 tsp = 5g (20 kcal)"),
+    FoodEntity(903, "Shingara", "সিঙ্গাড়া", 288.0, 5.2, 36.5, 13.5, 2.4, 65.0, "1 pc = 65g (187 kcal)"),
+    FoodEntity(904, "Dudh Cha (Milk Tea)", "দুধ চা", 58.0, 1.8, 8.5, 1.8, 0.0, 150.0, "1 Cup = 150ml (87 kcal)"),
+    FoodEntity(905, "Rong Cha (1 tsp Sugar)", "রং চা", 16.0, 0.1, 4.0, 0.0, 0.0, 150.0, "1 Cup = 150ml (24 kcal)"),
+    FoodEntity(906, "Boiled Chicken Egg", "সিদ্ধ ডিম", 155.0, 12.6, 1.1, 10.6, 0.0, 50.0, "1 Egg = 50g (78 kcal)"),
+    FoodEntity(907, "Samucha", "সমুচা", 315.0, 6.8, 34.0, 16.8, 1.8, 50.0, "1 pc = 50g (158 kcal)"),
+    FoodEntity(908, "Steamed White Rice", "সিদ্ধ ভাত", 115.0, 2.5, 25.6, 0.2, 0.4, 200.0, "1 Cup = 200g (230 kcal)")
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MealResultScreen(
@@ -35,7 +48,7 @@ fun MealResultScreen(
     onStartManualOffline: (String?) -> Unit,
     onSaveMeal: (MealType) -> Unit
 ) {
-    var selectedMealType by remember { mutableStateOf(MealType.LUNCH) }
+    var selectedMealType by remember { mutableStateOf(MealType.SNACK) }
     var pickerTargetUid by remember { mutableStateOf<String?>(null) }
     var showFoodPicker by remember { mutableStateOf(false) }
 
@@ -63,7 +76,7 @@ fun MealResultScreen(
                 Text(scanState.message, style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(16.dp))
                 Button(onClick = { onStartManualOffline(scanState.photoPath) }) {
-                    Text("Add Food Items Manually (Offline)")
+                    Text("Add Food Items Manually")
                 }
             }
         }
@@ -92,6 +105,28 @@ fun MealResultScreen(
                     }
                 }
 
+                // 1-Tap Quick-Add Bar for Everyday Staples (Black Coffee, Sugar, Singara, Tea, Egg)
+                item {
+                    Text(
+                        "⚡ Quick Add Everyday Items (1-Tap):",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        QUICK_ADD_STAPLES.forEach { staple ->
+                            ElevatedSuggestionChip(
+                                onClick = { onReplaceItem(null, staple) },
+                                label = { Text("+ ${staple.name_bn} (${staple.typical_serving_g.toInt()}g)") }
+                            )
+                        }
+                    }
+                }
+
                 if (scanState.photoPath != null) {
                     item {
                         AsyncImage(
@@ -99,16 +134,19 @@ fun MealResultScreen(
                             contentDescription = "Captured Plate",
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(180.dp)
+                                .height(170.dp)
                         )
                     }
                 }
 
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                    ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Text(
-                                "Live Plate Total: $totalKcal kcal",
+                                "Live Meal Total: $totalKcal kcal",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
                             )
@@ -141,13 +179,16 @@ fun MealResultScreen(
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Add Another Dish From Database")
+                        Text("Search Full 160+ Bangladeshi Food Database")
                     }
                 }
 
                 item {
                     Text("Save Under Meal:", fontWeight = FontWeight.SemiBold)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         MealType.entries.forEach { type ->
                             FilterChip(
                                 selected = selectedMealType == type,
@@ -193,6 +234,13 @@ fun EditableFoodItemCard(
     onSwapFoodClick: () -> Unit,
     onRemoveClick: () -> Unit
 ) {
+    val nameLower = item.nameEn.lowercase()
+    val isDrink = nameLower.contains("coffee") || nameLower.contains("cha") || nameLower.contains("tea") || nameLower.contains("borhani") || nameLower.contains("lacchi")
+    val isSugarOrGur = nameLower.contains("sugar") || nameLower.contains("gur")
+    val isSnackPiece = nameLower.contains("shingara") || nameLower.contains("samucha") || nameLower.contains("egg") || nameLower.contains("pitha") || nameLower.contains("chop")
+    val stepSize = if (isSugarOrGur) 5.0 else 15.0
+    val unitLabel = if (isDrink) "ml" else "g"
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
@@ -203,7 +251,7 @@ fun EditableFoodItemCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("${item.nameEn} (${item.nameBn})", fontWeight = FontWeight.Bold)
                     val badgeText = if (item.isApproximate) "⚠️ Approximate Match - Tap Edit to Pick Exact"
-                    else "✓ Matched (${(item.confidence * 100).roundToInt()}% conf) • ${item.servingDescription}"
+                    else "✓ ${item.servingDescription}"
                     Text(badgeText, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
                 }
                 IconButton(onClick = onSwapFoodClick) {
@@ -220,17 +268,17 @@ fun EditableFoodItemCard(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    FilledTonalIconButton(onClick = { onUpdateGrams(item.grams - 15.0) }) {
-                        Icon(Icons.Default.Remove, contentDescription = "-15g")
+                    FilledTonalIconButton(onClick = { onUpdateGrams(item.grams - stepSize) }) {
+                        Icon(Icons.Default.Remove, contentDescription = "Decrease")
                     }
                     Text(
-                        "${item.grams.roundToInt()} g",
+                        "${item.grams.roundToInt()} $unitLabel",
                         modifier = Modifier.padding(horizontal = 12.dp),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    FilledTonalIconButton(onClick = { onUpdateGrams(item.grams + 15.0) }) {
-                        Icon(Icons.Default.Add, contentDescription = "+15g")
+                    FilledTonalIconButton(onClick = { onUpdateGrams(item.grams + stepSize) }) {
+                        Icon(Icons.Default.Add, contentDescription = "Increase")
                     }
                 }
                 Text(
@@ -241,10 +289,34 @@ fun EditableFoodItemCard(
                 )
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                AssistChip(onClick = { onUpdateGrams(200.0) }, label = { Text("1 Cup Rice (200g)") })
-                AssistChip(onClick = { onUpdateGrams(40.0) }, label = { Text("1 Ruti (40g)") })
-                AssistChip(onClick = { onUpdateGrams(60.0) }, label = { Text("Bhorta/Pc (60g)") })
+            // Smart Context-Aware Presets based on Food Type
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                when {
+                    isDrink -> {
+                        AssistChip(onClick = { onUpdateGrams(120.0) }, label = { Text("Small Cup (120ml)") })
+                        AssistChip(onClick = { onUpdateGrams(200.0) }, label = { Text("1 Mug (200ml)") })
+                        AssistChip(onClick = { onUpdateGrams(300.0) }, label = { Text("Large Mug (300ml)") })
+                    }
+                    isSugarOrGur -> {
+                        AssistChip(onClick = { onUpdateGrams(5.0) }, label = { Text("1 tsp (5g = 20 kcal)") })
+                        AssistChip(onClick = { onUpdateGrams(10.0) }, label = { Text("2 tsp (10g = 40 kcal)") })
+                        AssistChip(onClick = { onUpdateGrams(15.0) }, label = { Text("1 tbsp (15g = 60 kcal)") })
+                    }
+                    isSnackPiece -> {
+                        val singleWt = item.matchedFood?.typical_serving_g ?: 60.0
+                        AssistChip(onClick = { onUpdateGrams(singleWt) }, label = { Text("1 Pc (${singleWt.toInt()}g)") })
+                        AssistChip(onClick = { onUpdateGrams(singleWt * 2) }, label = { Text("2 Pcs (${(singleWt * 2).toInt()}g)") })
+                        AssistChip(onClick = { onUpdateGrams(singleWt * 3) }, label = { Text("3 Pcs (${(singleWt * 3).toInt()}g)") })
+                    }
+                    else -> {
+                        AssistChip(onClick = { onUpdateGrams(200.0) }, label = { Text("1 Cup Rice (200g)") })
+                        AssistChip(onClick = { onUpdateGrams(40.0) }, label = { Text("1 Ruti (40g)") })
+                        AssistChip(onClick = { onUpdateGrams(60.0) }, label = { Text("Bhorta/Pc (60g)") })
+                    }
+                }
             }
         }
     }
@@ -269,7 +341,7 @@ fun SearchableFoodPickerDialog(
                         query = it
                         onQueryChange(it)
                     },
-                    label = { Text("Search English or বাংলা...") },
+                    label = { Text("Search coffee, singara, sugar, ভাত...") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
@@ -282,7 +354,7 @@ fun SearchableFoodPickerDialog(
                             Column(modifier = Modifier.padding(10.dp)) {
                                 Text("${food.name_en} • ${food.name_bn}", fontWeight = FontWeight.SemiBold)
                                 Text(
-                                    "${food.kcal_per_100g.toInt()} kcal/100g | Serving: ${food.typical_serving_g.toInt()}g (${food.source})",
+                                    "${food.kcal_per_100g.toInt()} kcal/100g | Typical: ${food.typical_serving_g.toInt()}g (${food.source})",
                                     style = MaterialTheme.typography.labelSmall
                                 )
                             }
