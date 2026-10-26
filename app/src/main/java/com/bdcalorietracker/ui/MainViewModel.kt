@@ -113,7 +113,7 @@ class MainViewModel @Inject constructor(
             _scanState.value = ScanUiState.Analyzing
             try {
                 val (bitmap, savedPath) = withContext(Dispatchers.IO) {
-                    ImageCompressor.compressAndSave(appContext, uri, 1024)
+                    ImageCompressor.compressAndSave(appContext, uri, 768)
                 }
                 val catalog = withContext(Dispatchers.IO) { foodDao.getAllFoods() }
                 val aiResult = geminiVisionService.analyzePlatePhoto(bitmap)
